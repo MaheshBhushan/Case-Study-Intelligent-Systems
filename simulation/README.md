@@ -18,7 +18,7 @@ uv run python -m moulding_sim.optimize   # NSGA-II tuning, ~15 min on 8 cores ->
 uv run python -m moulding_sim.experiments  # held-out comparison -> results/summary.md
 ```
 
-`experiments` options: `--seeds 100-119 --scenarios base,high --workers 8`.
+`experiments` options: `--seeds 100-199 --scenarios base,high --workers 8`.
 
 ## Model
 
@@ -33,7 +33,7 @@ drying (2 dryers) -> moulding (2 machines) -> camera inspection -> assembly -> c
 | Energy | Per-station power states (busy, idle, setup, off, warm-up), optional idle shutdown of moulding machines, fixed 60 kW clean-room HVAC |
 | Failures | Tool wear and cooling fouling build up with use. Ground truth follows the five AI4I 2020 failure rules (TWF, HDF, PWF, OSF, RNF). Lognormal repair, mean 4 h. A repair fixes only the failed component; preventive maintenance (1 h) restores everything. |
 | Quality | Start-up scrap after changeovers, purge scrap after breakdowns, wear-dependent inspection rejects |
-| Reproducibility | Separate seeded random streams for orders, sensors, repairs and inspection, so every policy faces identical demand (common random numbers) |
+| Randomness | Each seed is one randomised two-week scenario: orders, sensor noise, repairs and inspection, drawn from separate random streams. Every policy runs on the same set of scenarios (common random numbers), so differences come from the policy, not from luck. |
 
 KPIs are measured from day 2 to day 14; released orders get 4 extra days to finish.
 Scenarios: `low` / `base` / `high` demand (mean order gap 135 / 115 / 100 min), and `harsh`
@@ -52,35 +52,38 @@ The risk is the Random Forest's failure probability for the job on that machine,
 16 fixed sensor-noise draws. Engineered features (ΔT, power, strain) raise held-out AI4I F1 from
 0.69 to 0.88 (ROC-AUC 0.97); inside the simulation, ROC-AUC is 0.88.
 
-## Results (held-out seeds 100–119)
+## Results (100 held-out scenarios)
 
-PRED-MO was tuned on seeds 0–2 (`base` and `high` only). It never saw the test seeds or the
-`harsh` scenario. Objectives: lead time, kWh per 1,000 good parts, and total maintenance hours
+PRED-MO was tuned on 3 training scenarios (seeds 0–2, `base` and `high` demand only). It was then
+tested on 100 new randomised scenarios (seeds 100–199) that it never saw, plus the unseen `harsh`
+setting. Objectives: lead time, kWh per 1,000 good parts, and total maintenance hours
 (unplanned repairs + planned PM).
 
-Means ± 95 % CI over 20 replications (from `results/summary.md`):
+Means ± 95 % CI over 100 scenarios (from `results/summary.md`):
 
 | Scenario | Policy | Lead time (h) | On time | kWh / 1,000 good | Maintenance (h) |
 |---|---|---|---|---|---|
-| base | FCFS | 20.4 ± 3.3 | 91.4 % | 72.5 | 25.4 |
-| base | SETUP | 14.1 ± 0.7 | 96.8 % | 70.7 | 25.5 |
-| base | PRED-MO | 13.7 ± 0.6 | 98.5 % | 69.7 | 14.2 |
-| high | FCFS | 36.3 ± 6.4 | 77.5 % | 69.8 | 26.1 |
-| high | SETUP | 18.1 ± 1.8 | 93.3 % | 64.3 | 29.6 |
-| high | PRED-MO | 16.8 ± 1.5 | 97.9 % | 63.6 | 14.5 |
-| harsh | SETUP | 14.5 ± 0.8 | 96.2 % | 70.6 | 36.1 |
-| harsh | PRED-MO | 13.8 ± 0.7 | 98.5 % | 69.7 | 16.7 |
+| base | FCFS | 23.1 ± 1.7 | 88.9 % | 72.3 | 27.3 |
+| base | SETUP | 15.0 ± 0.5 | 95.6 % | 70.2 | 28.1 |
+| base | PRED-MO | 14.3 ± 0.4 | 98.4 % | 69.2 | 14.1 |
+| high | FCFS | 41.0 ± 2.9 | 71.4 % | 70.4 | 28.6 |
+| high | SETUP | 19.4 ± 1.0 | 92.1 % | 64.4 | 31.4 |
+| high | PRED-MO | 17.8 ± 0.8 | 97.5 % | 63.6 | 16.1 |
+| harsh | SETUP | 15.3 ± 0.5 | 95.4 % | 70.2 | 37.9 |
+| harsh | PRED-MO | 14.4 ± 0.4 | 98.3 % | 69.1 | 18.7 |
 
-Compared with the best baseline (SETUP), with paired tests on common seeds:
-- maintenance time is 35–54 % lower (p < 0.002);
-- lead time is 1–7 % lower;
+Compared with the best baseline (SETUP), using paired tests over the shared scenarios
+(all p < 0.001):
+- maintenance time is 43–51 % lower;
+- lead time is 2–9 % lower;
 - energy per good part is 1–2.5 % lower.
 
-Mean time to clear orders disrupted by a breakdown is longer at high demand (25.7 h vs 21.0 h).
+Mean time to clear orders disrupted by a breakdown is longer at high demand (28.3 h vs 22.3 h).
 
-Ablation (`results/ablation_summary.csv`): the maintenance gain comes from the risk-triggered PM
-(removing it brings maintenance back to 23–34 h). Adding risk to the dispatch score has no
-measurable effect. The lead-time and on-time gains come from the tuned dispatch weights.
+Ablation over the same 100 scenarios (`results/ablation_summary.csv`): the maintenance gain comes
+from the risk-triggered PM (removing it brings maintenance back to 27–37 h). Adding risk to the
+dispatch score has no measurable effect. The lead-time and on-time gains come from the tuned
+dispatch weights.
 
 ## Limitations
 

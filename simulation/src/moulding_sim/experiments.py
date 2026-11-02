@@ -1,6 +1,9 @@
-"""Policy comparison with common random numbers, replications and 95 % confidence intervals.
+"""Policy comparison over many randomised scenarios with 95 % confidence intervals.
 
-Usage: python -m moulding_sim.experiments [--seeds 100-119] [--scenarios base,high] [--tuned results/tuned.json]
+Each seed is one randomised two-week scenario (orders, sensor noise, repairs). Every policy is
+run on the same set of scenarios (common random numbers), so differences come from the policy.
+
+Usage: python -m moulding_sim.experiments [--seeds 100-199] [--scenarios base,high] [--tuned results/tuned.json]
 """
 
 from __future__ import annotations
@@ -20,7 +23,7 @@ from .policies import FCFS, SPT, Predictive, SetupAware
 from .risk import ROOT, RiskModel
 
 RESULTS = ROOT / "results"
-TEST_SEEDS = range(100, 120)  # held out: never used for tuning
+TEST_SEEDS = range(100, 200)  # 100 held-out scenarios, never used for tuning
 KPIS = ["throughput_uph", "lead_time_h", "on_time_rate", "kwh_per_1000_good", "scrap_rate",
         "failures", "pm_events", "downtime_h", "pm_h", "maintenance_h", "recovery_h", "setup_h"]
 
