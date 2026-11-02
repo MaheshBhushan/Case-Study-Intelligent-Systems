@@ -1,0 +1,26 @@
+{
+  "params": {
+    "w_due": 0.35259556788609925,
+    "w_setup": 2.002231139891045,
+    "w_spt": 1.0420732124082586,
+    "w_risk": 4.7233445852479194,
+    "idle_off": 35.32629705566578,
+    "pm_threshold": 0.06759570473758328
+  },
+  "train_objectives": {
+    "lead_time_h": 15.522489558771644,
+    "kwh_per_1000_good": 66.27062815247915,
+    "maintenance_h": 9.519591338694351
+  },
+  "train_seeds": [
+    0,
+    1,
+    2
+  ],
+  "train_scenarios": [
+    "base",
+    "high"
+  ],
+  "trials": 192,
+  "pareto_size": 10
+}

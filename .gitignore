@@ -1,0 +1,8 @@
+# Allow-list: this folder also holds course material and drafts that are not published.
+/*
+!/.gitignore
+!/.github/
+!/README.md
+!/Proposal_Gerresheimer_Pfreimd.docx
+!/Presentation_Gerresheimer_Pfreimd.pptx
+!/simulation/
