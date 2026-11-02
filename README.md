@@ -1,7 +1,7 @@
 # AI-Driven Multi-Objective Optimization of a Medical Injection-Moulding Line
 
 MDM2 Case Study: Intelligent Systems in Production (THD, WS 2026/27).
-Team: Mahesh Koduri, Kuriakose Vettikattil Raju, Saurabhkumar Mahant.
+Team: Kuriakose Vettikattil Raju (team lead), Mahesh Koduri, Saurabhkumar Mahant.
 Supervisor: Prof. Dr.-Ing. Hamidreza Heidari.
 
 A simulated case study modelled on the Gerresheimer medical-plastics plant in Pfreimd. The project
