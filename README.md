@@ -15,6 +15,7 @@ packaging. The KPIs are lead time, energy, maintenance/downtime and scrap.
 |---|---|
 | `Proposal_Gerresheimer_Pfreimd.docx` | Phase 1 one-page proposal |
 | `Presentation_Gerresheimer_Pfreimd.pptx` | Phase 1 concept presentation |
+| `Progress_Presentation_Gerresheimer_Pfreimd.pptx` | Phase 2 progress presentation (Phase 1 → Phase 2) |
 | `simulation/` | SimPy model, AI4I 2020 failure-risk model, Optuna NSGA-II tuning, experiments, tests ([details](simulation/README.md)) |
 
 ## Status
