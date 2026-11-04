@@ -19,13 +19,14 @@ from scipy import stats
 
 from .config import SCENARIOS
 from .model import simulate
-from .policies import FCFS, SPT, Predictive, SetupAware
+from .policies import FCFS, SPT, Predictive, RulePM, SetupAware
 from .risk import ROOT, RiskModel
 
 RESULTS = ROOT / "results"
 TEST_SEEDS = range(100, 200)  # 100 held-out scenarios, never used for tuning
-KPIS = ["throughput_uph", "lead_time_h", "on_time_rate", "kwh_per_1000_good", "scrap_rate",
-        "failures", "pm_events", "downtime_h", "pm_h", "maintenance_h", "recovery_h", "setup_h"]
+KPIS = ["throughput_uph", "lead_time_h", "on_time_rate", "kwh_per_1000_good", "press_kwh_per_kg",
+        "scrap_rate", "escaped_ppm", "failures", "pm_events", "downtime_h", "pm_h", "maintenance_h",
+        "mttr_h", "setup_h", "setter_wait_h", "press_util", "availability", "oee"]
 
 _risk: RiskModel | None = None
 
@@ -36,15 +37,17 @@ def _init_worker() -> None:
 
 
 def build_policy(spec: dict):
-    """spec = {"name": "FCFS"} or {"name": "PRED-MO", **Predictive params}."""
+    """spec = {"name": "FCFS"}, {"name": "SETUP+PM", **RulePM params} or {"name": "PRED-MO", ...}."""
     name = spec["name"]
+    params = {k: v for k, v in spec.items() if k != "name"}
     if name == "FCFS":
         return FCFS()
     if name == "SPT":
         return SPT()
     if name == "SETUP":
         return SetupAware()
-    params = {k: v for k, v in spec.items() if k != "name"}
+    if name == "SETUP+PM":
+        return RulePM(**params)
     return Predictive(_risk or RiskModel(), name=name, **params)
 
 
@@ -82,9 +85,9 @@ def paired_vs(df: pd.DataFrame, baseline: str, policy: str, kpi: str) -> pd.Data
     return pd.DataFrame(rows)
 
 
-def markdown(summary: pd.DataFrame, cols=("throughput_uph", "lead_time_h", "on_time_rate",
-                                          "kwh_per_1000_good", "scrap_rate", "maintenance_h",
-                                          "recovery_h")) -> str:
+def markdown(summary: pd.DataFrame, cols=("lead_time_h", "on_time_rate", "kwh_per_1000_good",
+                                          "oee", "escaped_ppm", "maintenance_h",
+                                          "mttr_h")) -> str:
     out = ["| scenario | policy | " + " | ".join(cols) + " |", "|---|---|" + "---|" * len(cols)]
     for (sc, pol), r in summary.iterrows():
         cells = [f"{r[c]:.3g} ± {r[c + '_ci']:.2g}" for c in cols]
@@ -102,13 +105,15 @@ def main() -> None:
     ap.add_argument("--seeds", type=_seeds, default=TEST_SEEDS)
     ap.add_argument("--scenarios", default=",".join(SCENARIOS))
     ap.add_argument("--tuned", type=Path, default=RESULTS / "tuned.json")
+    ap.add_argument("--rule", type=Path, default=RESULTS / "rule.json")
     ap.add_argument("--workers", type=int, default=None)
     a = ap.parse_args()
     specs = [{"name": "FCFS"}, {"name": "SPT"}, {"name": "SETUP"}]
-    if a.tuned.exists():
-        specs.append({"name": "PRED-MO", **json.loads(a.tuned.read_text())["params"]})
-    else:
-        print(f"no tuned policy at {a.tuned}; running baselines only")
+    for path, name in ((a.rule, "SETUP+PM"), (a.tuned, "PRED-MO")):
+        if path.exists():
+            specs.append({"name": name, **json.loads(path.read_text())["params"]})
+        else:
+            print(f"no {name} parameters at {path}; skipping it")
     df = run_grid(specs, a.scenarios.split(","), a.seeds, a.workers)
     RESULTS.mkdir(exist_ok=True)
     df.to_csv(RESULTS / "runs.csv", index=False)
@@ -116,9 +121,10 @@ def main() -> None:
     summary.to_csv(RESULTS / "summary.csv")
     md = [markdown(summary)]
     if "PRED-MO" in df.policy.values:
-        tests = pd.concat([paired_vs(df, base, "PRED-MO", k) for base in ("FCFS", "SETUP")
+        tests = pd.concat([paired_vs(df, base, "PRED-MO", k)
+                           for base in ("FCFS", "SETUP", "SETUP+PM") if base in df.policy.values
                            for k in ("lead_time_h", "on_time_rate", "kwh_per_1000_good",
-                                     "maintenance_h")])
+                                     "maintenance_h", "escaped_ppm")])
         tests.to_csv(RESULTS / "paired_tests.csv", index=False)
         md.append(tests.round(4).to_markdown(index=False))
     (RESULTS / "summary.md").write_text("\n\n".join(md) + "\n")

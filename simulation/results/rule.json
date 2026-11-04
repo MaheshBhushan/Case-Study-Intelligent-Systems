@@ -1,0 +1,20 @@
+{
+  "params": {
+    "wear_limit": 180.0,
+    "fouling_limit": 99.0
+  },
+  "train_objectives": {
+    "lead_time_h": 218.7250968215366,
+    "kwh_per_1000_good": 13.67397785464305,
+    "maintenance_h": 351.2085515134418
+  },
+  "train_seeds": [
+    0,
+    1,
+    2
+  ],
+  "train_scenarios": [
+    "base",
+    "high"
+  ]
+}

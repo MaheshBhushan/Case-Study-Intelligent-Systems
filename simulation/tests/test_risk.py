@@ -19,3 +19,11 @@ def test_risk_ranks_failure_conditions_above_healthy():
     r = rm.predict(np.array([healthy, hdf, overload]))
     assert r[0] < 0.1
     assert r[1] > 0.3 and r[2] > 0.3
+
+
+def test_fast_predict_matches_sklearn():
+    rm = RiskModel()
+    rows = np.random.default_rng(0).normal([1, 300, 310, 1500, 40, 120], [0.8, 2, 2, 150, 10, 60], (64, 6))
+    rows[:, 0] = np.clip(np.round(rows[:, 0]), 0, 2)
+    expected = rm.rf.predict_proba(engineer(rows))[:, 1]
+    np.testing.assert_allclose(rm.predict(rows), expected, atol=1e-6)

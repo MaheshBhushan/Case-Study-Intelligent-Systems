@@ -1,4 +1,8 @@
-"""Dispatching policies. Baselines run reactive maintenance and never switch machines off."""
+"""Dispatching and maintenance policies.
+
+`select` receives only jobs the machine can run (for presses: compatible mould that is free).
+Baselines run reactive maintenance and never switch presses off.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +16,7 @@ from .model import Job, Machine
 
 class Policy:
     name = "base"
-    idle_off = math.inf  # minutes idle before a moulding machine is switched off
+    idle_off = math.inf  # minutes idle before a press is switched off
 
     def select(self, queue: list[Job], m: Machine, now: float) -> Job:
         raise NotImplementedError
@@ -36,7 +40,7 @@ class SPT(Policy):
 
 
 class SetupAware(Policy):
-    """Mould grouping: least changeover first, FCFS on ties (Allahverdi et al. 2008)."""
+    """Least changeover first, FCFS on ties (Allahverdi et al. 2008)."""
 
     name = "SETUP"
 
@@ -45,11 +49,28 @@ class SetupAware(Policy):
 
 
 @dataclass
+class RulePM(SetupAware):
+    """Setup-aware dispatch + rule-based preventive maintenance without ML.
+
+    PM before the next shift block when screw wear would pass `wear_limit` (AI4I tool-wear
+    minutes) or heat-dissipation margin loss reaches `fouling_limit` (K).
+    """
+
+    wear_limit: float = 180.0
+    fouling_limit: float = 1.2
+    name: str = "SETUP+PM"
+
+    def wants_pm(self, m, job):
+        nxt = m.wear + m.wear_increment(job.product, m.f.sc.block_min)
+        return nxt >= self.wear_limit or m.fouling >= self.fouling_limit
+
+
+@dataclass
 class Predictive(Policy):
     """Weighted multi-objective dispatch + RF failure risk + idle shutdown + predictive PM.
 
-    score = w_due*slack_days + w_setup*setup/165 + w_spt*proc/150 + w_risk*risk; lowest wins.
-    PM is triggered before a job when its predicted failure risk on this machine >= pm_threshold.
+    score = w_due*slack_days + w_setup*setup/255 + w_spt*proc_days + w_risk*risk; lowest wins.
+    PM is triggered before a shift block when predicted failure risk >= pm_threshold.
     """
 
     risk_model: object
@@ -62,27 +83,21 @@ class Predictive(Policy):
     name: str = "PRED-MO"
 
     def risks(self, m: Machine, jobs: list[Job]) -> np.ndarray:
-        """Failure probability per job on machine m, averaged over sensor-noise draws."""
+        """Failure probability per job for the next block on machine m (noise-averaged)."""
         rows = np.concatenate([m.risk_readings(j) for j in jobs])
         return self.risk_model.predict(rows).reshape(len(jobs), -1).mean(axis=1)
 
     def select(self, queue, m, now):
         st = m.st.name
-        # One RF call per moulding decision; the chosen job's risk is reused by wants_pm.
-        risk = self.risks(m, queue) if m.moulding else np.zeros(len(queue))
+        risk = self.risks(m, queue) if m.moulding and self.w_risk else np.zeros(len(queue))
 
         def score(i: int) -> float:
             j = queue[i]
             slack = (j.due - now - j.remaining_work(st)) / 1440
-            return (self.w_due * slack + self.w_setup * m.setup_time(j.product) / 165
-                    + self.w_spt * j.proc[st] / 150 + self.w_risk * risk[i])
+            return (self.w_due * slack + self.w_setup * m.setup_time(j.product) / 255
+                    + self.w_spt * j.proc[st] / 1440 + self.w_risk * risk[i])
 
-        best = min(range(len(queue)), key=score)
-        if m.moulding:
-            self._chosen = (m, queue[best], float(risk[best]))
-        return queue[best]
+        return queue[min(range(len(queue)), key=score)]
 
     def wants_pm(self, m, job):
-        cached = getattr(self, "_chosen", None)
-        r = cached[2] if cached and cached[0] is m and cached[1] is job else self.risks(m, [job])[0]
-        return r >= self.pm_threshold
+        return self.risks(m, [job])[0] >= self.pm_threshold

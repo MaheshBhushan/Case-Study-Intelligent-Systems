@@ -44,6 +44,31 @@ def compromise(front: pd.DataFrame) -> pd.Series:
     return front.loc[dist.idxmin()]
 
 
+RULE_GRID = {"wear_limit": (100, 120, 140, 160, 180, 200), "fouling_limit": (0.6, 0.8, 1.0, 1.2, 1.5, 99.0)}
+
+
+def tune_rule(ex: ProcessPoolExecutor, seeds) -> dict:
+    """Grid-search the non-ML wear/fouling PM rule on the same training scenarios as PRED-MO.
+
+    The rule's job is maintenance, so it is tuned for least total maintenance time (planned +
+    unplanned); this gives the ML policy the strongest fair rule-based opponent.
+    """
+    grid = [{"wear_limit": float(w), "fouling_limit": float(f)}
+            for w in RULE_GRID["wear_limit"] for f in RULE_GRID["fouling_limit"]]
+    jobs = [({"name": "SETUP+PM", **g}, sc, s) for g in grid for sc in TRAIN_SCENARIOS for s in seeds]
+    res = pd.DataFrame(list(ex.map(_run, jobs)))
+    res["wear_limit"], res["fouling_limit"] = zip(*[(j[0]["wear_limit"], j[0]["fouling_limit"]) for j in jobs])
+    table = res.groupby(["wear_limit", "fouling_limit"])[list(OBJECTIVES)].mean().reset_index()
+    best = table.loc[table["maintenance_h"].idxmin()]
+    rule = {"params": {"wear_limit": float(best.wear_limit), "fouling_limit": float(best.fouling_limit)},
+            "train_objectives": {o: float(best[o]) for o in OBJECTIVES},
+            "train_seeds": list(seeds), "train_scenarios": list(TRAIN_SCENARIOS)}
+    table.to_csv(RESULTS / "rule_grid.csv", index=False)
+    (RESULTS / "rule.json").write_text(json.dumps(rule, indent=2))
+    print("rule baseline:", json.dumps(rule["params"]), flush=True)
+    return rule
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--generations", type=int, default=10)
@@ -63,6 +88,8 @@ def main() -> None:
                          "idle_off": 1440.0, "pm_threshold": 1.0})
     seeds = range(a.train_seeds)
     with ProcessPoolExecutor(a.workers, initializer=_init_worker) as ex:
+        RESULTS.mkdir(exist_ok=True)
+        tune_rule(ex, seeds)
         for gen in range(a.generations):
             trials = [study.ask() for _ in range(a.population)]
             params = [suggest(t) for t in trials]

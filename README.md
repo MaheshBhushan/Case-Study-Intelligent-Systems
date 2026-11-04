@@ -20,13 +20,16 @@ packaging. The KPIs are lead time, energy, maintenance/downtime and scrap.
 
 ## Status
 
-The simulation runs end to end and first results exist, but it is **work in progress**. Planned
-improvements include:
-- realistic lot sizes and more moulding machines;
-- moulding-specific failure modes;
-- datasheet-based energy and electricity tariffs;
-- a benchmark against a non-ML maintenance rule;
-- sensitivity analysis.
+The simulation is at **model v2**. It has:
+- 12 presses in 3 tonnage classes and 8 moulds with limited copies;
+- campaign lots, setter and maintenance crews, and press failure modes;
+- energy by press drive type, OEE, camera inspection errors and GMP QA release;
+- a non-ML maintenance-rule baseline.
+
+Still open:
+- sensitivity analysis on the assumed parameters;
+- time-of-day electricity prices;
+- the dashboard and demo video.
 
 All plant parameters are synthetic and literature-based; Gerresheimer publishes no operational data.
 
