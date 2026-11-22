@@ -16,6 +16,7 @@ packaging. The KPIs are lead time, energy, maintenance/downtime and scrap.
 | `Proposal_Gerresheimer_Pfreimd.docx` | Phase 1 one-page proposal |
 | `Presentation_Gerresheimer_Pfreimd.pptx` | Phase 1 concept presentation |
 | `Progress_Presentation_Gerresheimer_Pfreimd.pptx` | Phase 2 progress presentation (Phase 1 → Phase 2) |
+| `Progress_Presentation_Phase3_Gerresheimer_Pfreimd.pptx` | Phase 3 presentation (24 Nov): methodology, sensitivity analysis, tests/CI, issues board. Rebuild with `tools/build_phase3_deck.py` |
 | `simulation/` | SimPy model, AI4I 2020 failure-risk model, Optuna NSGA-II tuning, experiments, tests ([details](simulation/README.md)) |
 
 ## Status
@@ -24,10 +25,10 @@ The simulation is at **model v2**. It has:
 - 12 presses in 3 tonnage classes and 8 moulds with limited copies;
 - campaign lots, setter and maintenance crews, and press failure modes;
 - energy by press drive type, OEE, camera inspection errors and GMP QA release;
-- a non-ML maintenance-rule baseline.
+- a non-ML maintenance-rule baseline;
+- a one-at-a-time sensitivity analysis on 10 assumed parameters.
 
-Still open:
-- sensitivity analysis on the assumed parameters;
+Still open (tracked on the [issues board](https://github.com/MaheshBhushan/Case-Study-Intelligent-Systems/issues)):
 - time-of-day electricity prices;
 - the dashboard and demo video.
 
