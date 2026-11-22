@@ -327,7 +327,8 @@ class Press(Machine):
         crew = f.toolroom if mode == "MOULD" else f.technicians
         with crew.request() as req:
             yield req
-            yield env.timeout(_lognormal(f.repair_rng, *REPAIR[mode]))
+            mean, sd = REPAIR[mode]
+            yield env.timeout(_lognormal(f.repair_rng, mean * f.sc.repair_scale, sd * f.sc.repair_scale))
         self.restore(mode)
         failure.ttr = env.now - failure.time
 

@@ -65,6 +65,14 @@ def test_qa_hold_shifts_release_without_touching_production():
     assert a["availability"] == b["availability"] and a["maintenance_h"] == b["maintenance_h"]
 
 
+def test_repair_scale_lengthens_repairs():
+    harsh = SCENARIOS["harsh"]
+    a = simulate(FCFS(), harsh, 2)
+    b = simulate(FCFS(), harsh.with_(repair_scale=2.0), 2)
+    assert a["failures"] > 0
+    assert b["mttr_h"] > 1.5 * a["mttr_h"]
+
+
 # ---- moulds, presses and changeovers ------------------------------------------------------
 def test_mould_fits_only_compatible_press_classes():
     f = Factory(NO_ORDERS, FCFS(), 0)

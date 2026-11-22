@@ -170,6 +170,7 @@ class Scenario:
     camera_false_reject: float = 0.003
     startup_scrap_units: int = 500  # first-article scrap after a changeover
     restart_scrap_units: int = 800  # purge after a breakdown
+    repair_scale: float = 1.0  # multiplies every REPAIR mean and sd (sensitivity analysis)
     setup: Setup = field(default_factory=Setup)
     crew: Crew = field(default_factory=Crew)
     power: Power = field(default_factory=Power)

@@ -32,7 +32,7 @@ This model uses the Gerresheimer site in Pfreimd as a public reference case. It 
 git clone https://github.com/MaheshBhushan/Case-Study-Intelligent-Systems.git
 cd Case-Study-Intelligent-Systems/simulation
 uv sync --locked                           # Python 3.12, versions pinned in uv.lock
-uv run pytest -q                           # 28 tests, ~15 s
+uv run pytest -q                           # 29 tests, ~20 s
 uv run python -m moulding_sim.experiments  # 100 held-out scenarios -> results/summary.md
 ```
 
@@ -107,10 +107,20 @@ What the paired tests show ([`paired_tests.csv`](results/paired_tests.csv)):
 
 The ablation at base demand ([`ablation_summary.csv`](results/ablation_summary.csv)) shows where the gains come from. The ML trigger prevents about 35 % more breakdowns than the wear rule, but it needs about 70 % more planned stops. As a result, it changes the kind of downtime, not the amount. Adding risk to the dispatch score has no effect. The delivery and energy gains come from the tuned dispatch weights and the idle shutdown.
 
+### Sensitivity
+
+`uv run python -m moulding_sim.sensitivity --seeds 100-129` moves each of 10 assumed parameters (demand, wear rate, repair time, technicians, setters, mould change, PM duration, QA hold, HVAC, camera detection) to a low and a high value, one at a time, at base demand. FCFS, SETUP+PM and PRED-MO run on the same 30 seeds per level with the tuned settings frozen. Output: [`results/sensitivity.md`](results/sensitivity.md).
+
+- PRED-MO has shorter lead time and lower energy than the wear rule at all 21 levels (lead time −0.5 % to −4.2 %, energy −2.4 % to −5.6 %). Every case is significant except lead time at low demand.
+- Maintenance time depends on the assumptions. PRED-MO needs more maintenance than the wear rule when repairs are short (×0.5, +8.9 %) or PM takes 240 min (+8.6 %). It needs less when repairs are long (×1.5, −6.2 %) or PM takes 60 min (−12.7 %).
+- PRED-MO lets more defects escape only at high wear (+2.2 %). Its OEE is about 1 % lower at every level.
+
+This analysis is one-at-a-time, so it does not test interactions between parameters.
+
 ## Limitations
 
 - There is no real plant data. AI4I 2020 is a milling dataset, used here as a stand-in failure signal.
-- Press power, crew sizes, repair times and lot sizes are assumptions, and no sensitivity analysis has been done yet.
+- Press power, crew sizes, repair times and lot sizes are assumptions. The one-at-a-time sensitivity analysis covers most of them, but not lot sizes or press power.
 - HVAC is modelled as a fixed load, so energy differences at plant level stay small. Time-of-day electricity prices are not modelled.
 - Assembly is one processing step per lot, not a multi-part bill of materials.
 
@@ -124,6 +134,7 @@ src/moulding_sim/
   risk.py         AI4I download, features, Random Forest, fast tree evaluation
   experiments.py  replications, confidence intervals, paired tests
   optimize.py     rule grid search, NSGA-II tuning, Pareto front
+  sensitivity.py  one-at-a-time sensitivity of the assumed parameters
 tests/            CRN, flow, moulds/setups, night shift, energy, camera, QA hold, AI4I rules, policies
 results/          tuned parameters, Pareto front, summaries, paired tests, ablation
 ```
