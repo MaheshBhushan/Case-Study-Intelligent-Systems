@@ -319,6 +319,23 @@ card(s, 8.85, 1.45, 3.75, 4.6, "BY 8 DEC", [
     "•  Dashboard prototype",
     "•  Datasheet values for press power"], dark=True, bsize=12)
 
+# ---------------------------------------------------------------- 10 thank you (layout of the concept deck's last slide)
+REPO = "https://github.com/MaheshBhushan/Case-Study-Intelligent-Systems"
+s = prs.slides.add_slide(BLANK); n_slide += 1
+s.shapes.add_picture(io.BytesIO(LOGO), Emu(9966960), Emu(274320), height=Emu(415777))
+text(s, 2.67, 2.0, 8.0, 1.2, "Thank You", 54, NAVY, True, PP_ALIGN.CENTER)
+box(s, 4.43, 3.35, 4.48, 0.08, TEAL)
+text(s, 1.67, 3.75, 10.0, 0.5, "AI-Driven Multi-Objective Optimization of a Medical Injection-Moulding Line", 18, MUTED,
+     align=PP_ALIGN.CENTER)
+text(s, 1.67, 4.75, 10.0, 0.45, "Questions & Discussion", 22, TEAL, True, PP_ALIGN.CENTER)
+link = text(s, 1.67, 5.4, 10.0, 0.4, [("GitHub repository:  ", {"color": NAVY}), ], 16, NAVY, False, PP_ALIGN.CENTER)
+run = link.text_frame.paragraphs[0].add_run()
+run.text = REPO.removeprefix("https://")
+run.font.name = "Aptos"; run.font.size = Pt(16); run.font.bold = True; run.font.color.rgb = TEAL
+run.hyperlink.address = REPO
+text(s, 1.67, 6.25, 10.0, 0.4, "Kuriakose Vettikattil Raju  •  Mahesh Koduri  •  Saurabhkumar Mahant  |  Group 7", 12,
+     MUTED, align=PP_ALIGN.CENTER)
+
 out = Path(sys.argv[1])
 prs.save(out)
 print("saved", out)
