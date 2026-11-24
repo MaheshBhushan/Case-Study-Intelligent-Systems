@@ -226,9 +226,7 @@ table(s, 0.75, 1.4, 11.8, [
 ], [2.0, 5.0, 2.9, 1.9], 11, 0.4)
 text(s, 0.75, 5.3, 11.8, 0.9, [
     ("Gerresheimer publishes no operational data. Every 'assumption' row is now covered by the sensitivity analysis, "
-     "so a wrong guess shows up as a changed conclusion instead of staying hidden.", {"color": NAVY}),
-    ("Risk: AI4I is a milling dataset, not moulding. We use it only as a failure signal and report it as a limitation.",
-     {"color": MUTED, "size": 11})], 12)
+     "so a wrong guess shows up as a changed conclusion instead of staying hidden.", {"color": NAVY})], 12)
 
 # ---------------------------------------------------------------- 4 feature progress
 s = slide("Feature Progress Since 3 November")
