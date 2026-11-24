@@ -1,17 +1,19 @@
 """Build the 24 Nov Phase 3 deck in the style of the 3 Nov progress deck.
 
-Usage: uv run --with python-pptx --with pandas python tools/build_phase3_deck.py OUT.pptx
+Usage: uv run --with python-pptx --with pandas --with matplotlib python tools/build_phase3_deck.py OUT.pptx
 Reads simulation/results/sensitivity*.csv, so run moulding_sim.sensitivity first.
 """
 import io
 import sys
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pandas as pd
 from pptx import Presentation
-from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
-from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION, XL_LABEL_POSITION
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import PP_ALIGN
 from pptx.util import Emu, Pt
@@ -101,10 +103,17 @@ def rel(param, level, kpi):
 
 
 PARAMS = [p for p in SENS.param.unique() if p != "baseline"]
-LABEL = {"demand": "Demand ±10 %", "wear_rate": "Screw wear ×0.5 / ×1.5", "repair_time": "Repair time ×0.5 / ×1.5",
-         "technicians": "Technicians 1 / 3", "setters": "Day setters 2 / 4", "mould_change": "Mould change 90 / 180 min",
-         "pm_duration": "PM duration 60 / 240 min", "qa_hold": "QA hold 24 / 72 h", "hvac": "HVAC 60 / 180 kW",
-         "camera": "Camera detect 95 / 99.5 %"}
+LEVEL_LABEL = {("baseline", "base"): "Baseline (all at base)",
+               ("demand", "low"): "Demand −10 %", ("demand", "high"): "Demand +10 %",
+               ("wear_rate", "low"): "Screw wear ×0.5", ("wear_rate", "high"): "Screw wear ×1.5",
+               ("repair_time", "low"): "Repair time ×0.5", ("repair_time", "high"): "Repair time ×1.5",
+               ("technicians", "low"): "Technicians: 1", ("technicians", "high"): "Technicians: 3",
+               ("setters", "low"): "Day setters: 2", ("setters", "high"): "Day setters: 4",
+               ("mould_change", "low"): "Mould change 90 min", ("mould_change", "high"): "Mould change 180 min",
+               ("pm_duration", "low"): "PM duration 60 min", ("pm_duration", "high"): "PM duration 240 min",
+               ("qa_hold", "low"): "QA hold 24 h", ("qa_hold", "high"): "QA hold 72 h",
+               ("hvac", "low"): "HVAC 60 kW", ("hvac", "high"): "HVAC 180 kW",
+               ("camera", "low"): "Camera detect 95 %", ("camera", "high"): "Camera detect 99.5 %"}
 n_seeds = int(pd.read_csv(WS / "simulation/results/sensitivity_runs.csv").seed.nunique())
 KP = ["lead_time_h", "kwh_per_1000_good", "maintenance_h", "on_time_rate"]
 levels = [("baseline", "base")] + [(p, l) for p in PARAMS for l in ("low", "high")]
@@ -202,38 +211,61 @@ card(s, 8.85, 1.45, 3.75, 4.6, "NEXT  →  22 DEC / 12 JAN", [
 text(s, 0.75, 6.25, 11.8, 0.4, "Issue numbers refer to the GitHub issues board (slide 8).", 11, MUTED)
 
 # ---------------------------------------------------------------- 5 sensitivity chart
+def hexrgb(c):
+    return "#%02x%02x%02x" % (c[0], c[1], c[2])
+
+
+def lead_time_dumbbell():
+    """Both policies' mean lead time at every sensitivity level, as a PNG."""
+    plt.rcParams.update({"font.family": ["Noto Sans", "DejaVu Sans"], "font.size": 9})
+    fig, ax = plt.subplots(figsize=(7.4, 5.6), dpi=220)
+    n = len(levels)
+    for i, (p, l) in enumerate(levels):
+        y = n - 1 - i
+        r = SENS[(SENS.param == p) & (SENS.level == l) & (SENS.kpi == "lead_time_h")].iloc[0]
+        if p != "baseline" and PARAMS.index(p) % 2 == 0:
+            ax.axhspan(y - 0.5, y + 0.5, color=hexrgb(CARD), zorder=0, lw=0)
+        ax.plot([r["SETUP+PM"], r["PRED-MO"]], [y, y], color="#b8c4d0", lw=2.2, zorder=1)
+        ax.scatter(r["SETUP+PM"], y, s=34, color=hexrgb(NAVY), zorder=2, label="SETUP+PM (tuned wear rule)" if i == 0 else None)
+        ax.scatter(r["PRED-MO"], y, s=34, color=hexrgb(TEAL), zorder=3, label="PRED-MO" if i == 0 else None)
+        sig = r["p"] < 0.05
+        ax.text(1.015, y, f"{r['rel_%']:+.1f} %{' *' if sig else ''}", transform=ax.get_yaxis_transform(),
+                va="center", fontsize=8.5, color=hexrgb(TEAL if sig else MUTED), fontweight="bold" if sig else "normal")
+    ax.axhline(n - 1.5, color=hexrgb(MUTED), lw=0.8)
+    ax.set_yticks(range(n), [LEVEL_LABEL[lv] for lv in levels][::-1])
+    ax.get_yticklabels()[-1].set_fontweight("bold")
+    ax.set_ylim(-0.6, n - 0.4)
+    ax.set_xlabel(f"Mean lead time per order (h), {n_seeds} common seeds per setting", color=hexrgb(NAVY))
+    ax.text(1.015, n - 0.2 + 0.6, "PRED-MO vs\nSETUP+PM", transform=ax.get_yaxis_transform(), fontsize=8.5,
+            color=hexrgb(NAVY), fontweight="bold", va="bottom")
+    ax.grid(axis="x", color="#e3e8ee", lw=0.8, zorder=0)
+    for side in ("top", "right", "left"):
+        ax.spines[side].set_visible(False)
+    ax.tick_params(axis="y", length=0, colors=hexrgb(NAVY))
+    ax.tick_params(axis="x", colors=hexrgb(MUTED))
+    ax.legend(loc="lower left", bbox_to_anchor=(0, 1.0), ncol=2, frameon=False, fontsize=9, handletextpad=0.3)
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
 s = slide("Sensitivity: Does PRED-MO Hold Up?")
-cd = CategoryChartData()
-cats = [LABEL[p] for p in PARAMS][::-1]
-cd.categories = cats
-for lvl, name in (("low", "low value"), ("high", "high value")):
-    cd.add_series(name, [round(lt[(p, lvl)], 2) for p in PARAMS][::-1])
-gf = s.shapes.add_chart(XL_CHART_TYPE.BAR_CLUSTERED, Emu(int(0.6 * IN)), Emu(int(1.35 * IN)),
-                        Emu(int(7.4 * IN)), Emu(int(5.5 * IN)), cd)
-ch = gf.chart
-ch.has_legend = True; ch.legend.position = XL_LEGEND_POSITION.BOTTOM; ch.legend.include_in_layout = False
-ch.legend.font.size = Pt(10)
-ch.has_title = True; ch.chart_title.text_frame.text = "PRED-MO vs SETUP+PM: lead-time change (%)"
-ch.chart_title.text_frame.paragraphs[0].runs[0].font.size = Pt(12)
-ch.chart_title.text_frame.paragraphs[0].runs[0].font.color.rgb = NAVY
-for ser, col in zip(ch.series, (TEAL, NAVY)):
-    ser.invert_if_negative = False
-    ser.format.fill.solid(); ser.format.fill.fore_color.rgb = col
-from pptx.enum.chart import XL_TICK_LABEL_POSITION
-ch.category_axis.tick_label_position = XL_TICK_LABEL_POSITION.LOW
-ch.category_axis.tick_labels.font.size = Pt(10)
-ch.value_axis.tick_labels.font.size = Pt(10)
-ch.value_axis.has_major_gridlines = False
+s.shapes.add_picture(lead_time_dumbbell(), Emu(int(0.55 * IN)), Emu(int(1.3 * IN)), width=Emu(int(7.4 * IN)))
 text(s, 8.25, 1.45, 4.4, 0.35, "Setup", 15, TEAL, True)
 text(s, 8.25, 1.85, 4.4, 2.2, [
     "•  10 assumed parameters, each moved to a low and a high value",
     "•  All other parameters stay at base demand",
     f"•  FCFS, SETUP+PM, PRED-MO on the same {n_seeds} seeds per level ({N_LV} levels)",
     "•  Tuned settings frozen: no re-tuning per level"], 11)
-text(s, 8.25, 4.15, 4.4, 0.35, "Reading the chart", 15, TEAL, True)
-text(s, 8.25, 4.55, 4.4, 1.8, [
-    "Bars left of zero: PRED-MO delivers faster than the tuned wear rule.",
-    f"Baseline (all parameters at base): {base_lt:+.1f} %."], 11)
+text(s, 8.25, 4.0, 4.4, 0.35, "Reading the chart", 15, TEAL, True)
+text(s, 8.25, 4.4, 4.4, 2.4, [
+    "Each row is one setting: navy = SETUP+PM, the tuned non-ML wear rule; teal = PRED-MO.",
+    "Teal left of navy: PRED-MO delivers faster. % = gap, * = p < 0.05 (paired t-test).",
+    f"PRED-MO is faster in all {N_LV} settings; the gap is largest at +10 % demand "
+    f"({lt[('demand', 'high')]:+.1f} %). Baseline: {base_lt:+.1f} %."], 11)
 
 # ---------------------------------------------------------------- 6 sensitivity findings
 s = slide("Sensitivity Results")
