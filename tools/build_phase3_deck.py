@@ -4,6 +4,7 @@ Usage: uv run --with python-pptx --with pandas --with matplotlib python tools/bu
 Reads simulation/results/sensitivity*.csv, so run moulding_sim.sensitivity first.
 """
 import io
+import json
 import sys
 from pathlib import Path
 
@@ -22,6 +23,8 @@ WS = Path(__file__).resolve().parents[1]
 OLD = Presentation(WS / "Progress_Presentation_Gerresheimer_Pfreimd.pptx")
 LOGO = next(sh.image.blob for sh in OLD.slides[1].shapes if sh.shape_type == 13)
 SENS = pd.read_csv(WS / "simulation/results/sensitivity.csv")
+TUNED = json.loads((WS / "simulation/results/tuned.json").read_text())
+ABL = pd.read_csv(WS / "simulation/results/ablation_summary.csv").set_index(["scenario", "policy"])
 
 TEAL, NAVY, MUTED, LINE, CARD, WHITE = (RGBColor(0, 125, 131), RGBColor(24, 43, 75), RGBColor(94, 107, 126),
                                          RGBColor(0xDE, 0xE6, 0xEE), RGBColor(0xEF, 0xF5, 0xF8), RGBColor(255, 255, 255))
@@ -173,6 +176,41 @@ table(s, 7.0, 3.6, 5.5, [["KPI", "Unit", "Better", "Role"],
 text(s, 7.0, 5.95, 5.5, 0.5, "NSGA-II minimises only the three objectives. Guardrails are reported for every policy "
      "to catch side effects (PRED-MO: OEE about 1 % lower).", 10, MUTED)
 
+# ---------------------------------------------------------------- 3 how PRED-MO works
+s = slide("How PRED-MO Works")
+tp = TUNED["params"]
+card(s, 0.75, 1.4, 3.85, 2.55, "1  FAILURE RISK (ML)", [
+    "Random Forest classifier, 150 trees, class-balanced (failures are rare)",
+    "Trained on AI4I 2020: 10,000 machine readings, label = machine failure",
+    "Inputs: type, air/process temp., speed, torque, tool wear + ΔT, power, strain",
+    "Held-out: F1 0.88, ROC-AUC 0.97"], hsize=13, bsize=11)
+card(s, 4.8, 1.4, 3.85, 2.55, "2  DISPATCH: WHICH JOB NEXT", [
+    "Every waiting job on a press gets a score; the lowest runs next:",
+    ("score = w_due·slack + w_setup·setup", {"bold": True, "color": TEAL}),
+    ("          + w_spt·process time + w_risk·risk", {"bold": True, "color": TEAL}),
+    "Balances due dates, mould changeovers, short jobs and failure risk"], hsize=13, bsize=11)
+card(s, 8.85, 1.4, 3.75, 2.55, "3  MAINTENANCE + ENERGY", [
+    f"Predictive PM: before a shift block, maintain the press if its risk ≥ {tp['pm_threshold']:.3f}",
+    f"Idle shutdown: a press idle for {tp['idle_off']:.0f} min is switched off",
+    "SETUP+PM uses a fixed wear limit instead of the risk model"], dark=True, hsize=13, bsize=11)
+text(s, 0.75, 4.15, 5.6, 0.35, f"4  Tuning: NSGA-II, {TUNED['trials']} trials", 15, TEAL, True)
+table(s, 0.75, 4.55, 5.6, [["Setting", "Tuned value"],
+                           ["w_due · w_setup · w_spt · w_risk",
+                            f"{tp['w_due']:.2f} · {tp['w_setup']:.2f} · {tp['w_spt']:.2f} · {tp['w_risk']:.2f}"],
+                           ["PM risk threshold", f"{tp['pm_threshold']:.3f}"],
+                           ["Idle shutdown after", f"{tp['idle_off']:.0f} min"],
+                           ["Objectives minimised", "lead time · energy · maintenance time"]], [2.7, 2.9], 10, 0.32)
+text(s, 0.75, 6.25, 5.6, 0.4, f"Training: seeds {TUNED['train_seeds'][0]}–{TUNED['train_seeds'][-1]} at base + high "
+     f"demand; {TUNED['pareto_size']} Pareto-optimal settings, one picked.", 10, MUTED)
+ml, rule, norisk = ABL.loc[("base", "PRED-MO")], ABL.loc[("base", "rule-PM-instead")], ABL.loc[("base", "no-risk-dispatch")]
+text(s, 6.8, 4.15, 5.8, 0.35, "Where the gain comes from", 15, TEAL, True)
+text(s, 6.8, 4.55, 5.8, 2.2, [
+    ("Ablation at base demand: switch off one part of PRED-MO at a time", {"color": MUTED, "size": 10}),
+    f"•  ML-triggered PM: {100 * (ml.failures / rule.failures - 1):+.0f} % breakdowns vs the wear rule, "
+    f"but {100 * (ml.pm_events / rule.pm_events - 1):+.0f} % planned stops: it shifts downtime, not removes it",
+    f"•  Risk in the dispatch score: lead time {ml.lead_time_h:.1f} h with it, {norisk.lead_time_h:.1f} h without, so no effect",
+    "•  Delivery and energy gains come from the tuned dispatch weights and the idle shutdown"], 11)
+
 # ---------------------------------------------------------------- 3 data sources
 s = slide("Data Sources and Locked Assumptions")
 table(s, 0.75, 1.4, 11.8, [
@@ -212,7 +250,7 @@ card(s, 8.85, 1.45, 3.75, 4.6, "NEXT  →  22 DEC / 12 JAN", [
     "•  Demo video + run instructions (#8)",
     "•  Real figures from datasheets (#9)",
     "•  IEEE final report (#10)"], dark=True, bsize=12)
-text(s, 0.75, 6.25, 11.8, 0.4, "Issue numbers refer to the GitHub issues board (slide 8).", 11, MUTED)
+text(s, 0.75, 6.25, 11.8, 0.4, "Issue numbers refer to the GitHub issues board (Issues Board slide).", 11, MUTED)
 
 # ---------------------------------------------------------------- 5 sensitivity chart
 def hexrgb(c):
