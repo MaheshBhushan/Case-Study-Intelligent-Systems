@@ -44,7 +44,7 @@ flowchart LR
 | `Proposal_Gerresheimer_Pfreimd.docx` | Phase 1 one-page proposal |
 | `Presentation_Gerresheimer_Pfreimd.pptx` | Phase 1 concept presentation |
 | `Progress_Presentation_Gerresheimer_Pfreimd.pptx` | Phase 2 progress presentation (Phase 1 → Phase 2) |
-| `Progress_Presentation_Phase3_Gerresheimer_Pfreimd.pptx` | Phase 3 presentation (24 Nov): methodology, sensitivity analysis, tests/CI, issues board. Rebuild with `tools/build_phase3_deck.py` |
+| `Progress_Presentation_Phase3_Gerresheimer_Pfreimd.pptx` (+ `.pdf`) | Phase 3 presentation (24 Nov): methodology, how PRED-MO works, sensitivity analysis, tests/CI, issues board. Rebuild with `tools/build_phase3_deck.py` |
 | `simulation/` | SimPy model, AI4I 2020 failure-risk model, Optuna NSGA-II tuning, experiments, tests ([details](simulation/README.md)) |
 
 ## Status
