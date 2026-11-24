@@ -9,6 +9,34 @@ compares fixed scheduling rules (FCFS, SPT, setup-aware) with a predictive, mult
 on a five-station line: drying, clean-room moulding, camera inspection, assembly and clean-room
 packaging. The KPIs are lead time, energy, maintenance/downtime and scrap.
 
+## Architecture
+
+```mermaid
+flowchart LR
+    T["TARGET<br/>Lower lead time, energy and maintenance time together"]
+    I["INPUT<br/>Orders, sensor readings, plant data"] --> A
+    subgraph A["APP: medical injection-moulding line, Gerresheimer Pfreimd"]
+        S["SYS MODEL<br/>SimPy discrete-event simulation<br/>12 presses, 5 stations"]
+        G["ALG<br/>PRED-MO: Random Forest risk + dispatch score + PM + idle-off<br/>tuned by NSGA-II"]
+        P["PARAM<br/>4 dispatch weights, PM threshold, idle time"]
+        S <--> G
+        P -.-> S
+        P -.-> G
+    end
+    A --> O["OUTPUT<br/>Job order, PM and shutdown decisions, KPIs"]
+    T -.-> A
+```
+
+| Block | In this project |
+|---|---|
+| **Target** | Minimise lead time (order → QA release), energy per 1,000 good parts and maintenance time at the same time. On-time rate, escaped defects and OEE are guardrails: reported for every policy, not optimised. The benchmark is a tuned non-ML rule (SETUP+PM). |
+| **App** | A simulated medical-plastics moulding plant modelled on Gerresheimer Pfreimd, built from public data and literature. |
+| **Input** | Orders (product, quantity, due date, mould); per-press sensor readings (air/process temperature, speed, torque, tool wear); plant data (press types and power, drying, changeovers, crews, repairs, QA hold); AI4I 2020 failure data to train the risk model. |
+| **Sys model** | SimPy discrete-event simulation: drying → moulding (12 presses, 8 moulds) → camera inspection → assembly → clean-room packaging, with failures, repairs, changeovers and energy use. |
+| **Alg** | PRED-MO: a Random Forest predicts each press's failure risk for the next shift; a weighted dispatch score picks the next job; predictive maintenance when risk ≥ threshold; idle presses switch off. NSGA-II (Optuna) tunes it. Baselines: FCFS, SPT, SETUP, SETUP+PM. |
+| **Param** | Decision parameters tuned by NSGA-II: `w_due`, `w_setup`, `w_spt`, `w_risk`, `pm_threshold`, `idle_off` ([tuned values](simulation/results/tuned.json)). Plant parameters are assumptions; the sensitivity analysis moves 10 of them to a low and a high value. |
+| **Output** | Job sequence per press, maintenance and shutdown decisions, and KPIs per policy, compared on 100 unseen scenarios with paired t-tests. |
+
 ## Contents
 
 | Path | What it is |
