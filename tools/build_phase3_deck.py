@@ -162,12 +162,16 @@ text(s, 0.75, 3.55, 5.9, 2.8, [
     "•  Strict train/test split: tuning seeds 0–2, evaluation seeds 100–199, 'harsh' scenario never tuned on",
     "•  Warm-up (3 weeks) excluded from KPIs; 12-week order release, 6-week drain",
     "•  Non-ML baseline (SETUP+PM wear rule) tuned with the same budget, so ML must earn its place"], 12)
-text(s, 7.0, 3.15, 5.5, 0.35, "KPIs (four objectives)", 15, TEAL, True)
-table(s, 7.0, 3.6, 5.5, [["KPI", "Unit", "Better"],
-                         ["Lead time (order → QA release)", "h", "lower"],
-                         ["Energy", "kWh / 1,000 good parts", "lower"],
-                         ["Maintenance time", "h", "lower"],
-                         ["Escaped defects · OEE", "ppm · ratio", "lower · higher"]], [2.6, 1.9, 1.0], 11)
+text(s, 7.0, 3.15, 5.5, 0.35, "KPIs: 3 tuned objectives + 3 guardrails", 15, TEAL, True)
+table(s, 7.0, 3.6, 5.5, [["KPI", "Unit", "Better", "Role"],
+                         ["Lead time (order → QA release)", "h", "lower", "objective"],
+                         ["Energy", "kWh / 1,000 good", "lower", "objective"],
+                         ["Maintenance time", "h", "lower", "objective"],
+                         ["On-time rate", "% of orders", "higher", "guardrail"],
+                         ["Escaped defects", "ppm", "lower", "guardrail"],
+                         ["OEE", "ratio", "higher", "guardrail"]], [2.25, 1.45, 0.75, 1.05], 10)
+text(s, 7.0, 5.95, 5.5, 0.5, "NSGA-II minimises only the three objectives. Guardrails are reported for every policy "
+     "to catch side effects (PRED-MO: OEE about 1 % lower).", 10, MUTED)
 
 # ---------------------------------------------------------------- 3 data sources
 s = slide("Data Sources and Locked Assumptions")
