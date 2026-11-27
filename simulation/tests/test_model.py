@@ -1,10 +1,11 @@
 import math
+from dataclasses import replace
 
 import numpy as np
 import pytest
 
 from moulding_sim.config import DAY, PRODUCTS, SCENARIOS, Scenario
-from moulding_sim.model import Factory, make_jobs, simulate
+from moulding_sim.model import Factory, PriceClock, make_jobs, simulate
 from moulding_sim.policies import FCFS, SPT, Policy, Predictive, RulePM, SetupAware
 
 BASE = SCENARIOS["base"]
@@ -136,6 +137,22 @@ class ShutdownFCFS(FCFS):
 def test_idle_shutdown_saves_energy_when_plant_is_starved():
     sc = BASE.with_(interarrival=4000.0)
     assert simulate(ShutdownFCFS(), sc, 0)["energy_kwh"] < simulate(FCFS(), sc, 0)["energy_kwh"]
+
+
+def test_flat_tariff_cost_equals_energy_times_price():
+    flat = BASE.with_(power=replace(BASE.power, price_eur_mwh=(100.0,) * 24))
+    k = simulate(FCFS(), flat, 1)
+    assert k["energy_eur"] == pytest.approx(k["energy_kwh"] * 0.1, rel=1e-9)
+    assert k["press_eur_per_mwh"] == pytest.approx(100.0)
+
+
+def test_price_clock_charges_by_hour_of_day_across_midnight():
+    prices = tuple(float(h) for h in range(24))  # hour h costs h EUR/MWh
+    clock = PriceClock(prices)
+    # 1000 kW from 23:30 on day 2 to 01:30 on day 3: 0.5 h at 23, 1 h at 0, 0.5 h at 1
+    a = 2 * DAY + 23.5 * 60
+    assert clock.cost_eur(1000.0, a, a + 120) == pytest.approx(0.5 * 23 + 0 + 0.5 * 1)
+    assert clock.cost_eur(1000.0, 5 * DAY, 6 * DAY) == pytest.approx(sum(prices))
 
 
 # ---- inspection ------------------------------------------------------------------------------

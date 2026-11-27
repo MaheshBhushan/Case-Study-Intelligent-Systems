@@ -24,7 +24,8 @@ from .risk import ROOT, RiskModel
 
 RESULTS = ROOT / "results"
 TEST_SEEDS = range(100, 200)  # 100 held-out scenarios, never used for tuning
-KPIS = ["throughput_uph", "lead_time_h", "on_time_rate", "kwh_per_1000_good", "press_kwh_per_kg",
+KPIS = ["throughput_uph", "lead_time_h", "on_time_rate", "kwh_per_1000_good", "eur_per_1000_good",
+        "press_eur_per_mwh", "press_kwh_per_kg",
         "scrap_rate", "escaped_ppm", "failures", "pm_events", "downtime_h", "pm_h", "maintenance_h",
         "mttr_h", "setup_h", "setter_wait_h", "press_util", "availability", "oee"]
 
@@ -86,6 +87,7 @@ def paired_vs(df: pd.DataFrame, baseline: str, policy: str, kpi: str) -> pd.Data
 
 
 def markdown(summary: pd.DataFrame, cols=("lead_time_h", "on_time_rate", "kwh_per_1000_good",
+                                          "eur_per_1000_good", "press_eur_per_mwh",
                                           "oee", "escaped_ppm", "maintenance_h",
                                           "mttr_h")) -> str:
     out = ["| scenario | policy | " + " | ".join(cols) + " |", "|---|---|" + "---|" * len(cols)]
@@ -124,6 +126,7 @@ def main() -> None:
         tests = pd.concat([paired_vs(df, base, "PRED-MO", k)
                            for base in ("FCFS", "SETUP", "SETUP+PM") if base in df.policy.values
                            for k in ("lead_time_h", "on_time_rate", "kwh_per_1000_good",
+                                     "eur_per_1000_good", "press_eur_per_mwh",
                                      "maintenance_h", "escaped_ppm")])
         tests.to_csv(RESULTS / "paired_tests.csv", index=False)
         md.append(tests.round(4).to_markdown(index=False))

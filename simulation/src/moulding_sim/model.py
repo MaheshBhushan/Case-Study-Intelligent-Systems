@@ -30,6 +30,24 @@ NOISE_SD = np.array([0.5, 0.5, 50.0, 5.0])
 RISK_DRAWS = np.random.default_rng(12345).standard_normal((16, 4)) * NOISE_SD
 
 
+class PriceClock:
+    """Integral of an hourly, daily-repeating price profile over time (EUR/MWh x minutes)."""
+
+    def __init__(self, profile: tuple[float, ...]):
+        self.hourly = np.asarray(profile, dtype=float)
+        self.cum = np.concatenate([[0.0], np.cumsum(self.hourly * 60)])  # integral at each full hour
+
+    def integral(self, t: float) -> float:
+        days, rest = divmod(t, DAY)
+        h, m = divmod(rest, 60)
+        h = int(h)
+        return days * self.cum[-1] + self.cum[h] + self.hourly[h] * m
+
+    def cost_eur(self, kw: float, a: float, b: float) -> float:
+        """Cost of drawing `kw` from minute a to b."""
+        return kw / 1000 / 60 * (self.integral(b) - self.integral(a))
+
+
 @dataclass(eq=False)
 class Job:
     id: int
@@ -350,6 +368,8 @@ class Factory:
         self.repair_rng = np.random.default_rng([seed, 4])
         self.qa_rng = np.random.default_rng([seed, 5])
         self.energy_kwh = self.press_kwh = self.moulded_kg = self.ideal_min = 0.0
+        self.energy_eur = self.press_eur = 0.0
+        self.prices = PriceClock(sc.power.price_eur_mwh)
         self.state_min: dict[str, float] = {}
         self.wip: set[Job] = set()
         self.failures: list[Failure] = []
@@ -380,14 +400,17 @@ class Factory:
         return max(0.0, min(b, self.sc.horizon) - max(a, self.sc.warmup))
 
     def account(self, m: Machine, state: str, a: float, b: float) -> None:
-        dt = self._overlap(a, b)
-        if dt <= 0:
+        a, b = max(a, self.sc.warmup), min(b, self.sc.horizon)
+        if b <= a:
             return
-        kwh = m.power(state) * dt / 60
+        kw = m.power(state)
+        kwh, eur = kw * (b - a) / 60, self.prices.cost_eur(kw, a, b)
         self.energy_kwh += kwh
+        self.energy_eur += eur
         if m.moulding:
             self.press_kwh += kwh
-            self.state_min[state] = self.state_min.get(state, 0.0) + dt
+            self.press_eur += eur
+            self.state_min[state] = self.state_min.get(state, 0.0) + (b - a)
 
     def moulded(self, job: Job, run: float) -> None:
         """Book output of `run` busy minutes: ideal-speed minutes (OEE) and kg moulded."""
@@ -456,6 +479,7 @@ class Factory:
             for m in st.machines:
                 m.set_state(m.state)  # flush accounting
         self.energy_kwh += sc.power.hvac * (sc.horizon - sc.warmup) / 60
+        self.energy_eur += self.prices.cost_eur(sc.power.hvac, sc.warmup, sc.horizon)
         return self.kpis(end)
 
     def kpis(self, end: float) -> dict:
@@ -482,6 +506,9 @@ class Factory:
             "on_time_rate": float(np.mean(on_time)) if on_time else 1.0,
             "energy_kwh": self.energy_kwh,
             "kwh_per_1000_good": 1000 * self.energy_kwh / good if good else math.inf,
+            "energy_eur": self.energy_eur,
+            "eur_per_1000_good": 1000 * self.energy_eur / good if good else math.inf,
+            "press_eur_per_mwh": 1000 * self.press_eur / self.press_kwh if self.press_kwh else 0.0,
             "press_kwh_per_kg": self.press_kwh / self.moulded_kg if self.moulded_kg else math.inf,
             "scrap_rate": scrap,
             "escaped_ppm": 1e6 * sum(j.escaped for j in shipped) / good if good else 0.0,

@@ -112,6 +112,13 @@ class Crew:
     toolmakers: int = 2  # toolroom for mould repair and service
 
 
+# Stylised hourly day-ahead price (EUR/MWh, hour 0-23) for a plant on a dynamic tariff: cheap
+# night, solar dip at midday, evening peak. Shape follows the German day-ahead market; the level
+# is an assumption.
+PRICE_PROFILE = (85, 82, 80, 80, 82, 90, 115, 130, 125, 105, 85, 75,
+                 70, 70, 75, 90, 120, 150, 160, 150, 130, 110, 100, 90)
+
+
 @dataclass(frozen=True)
 class Power:
     """kW. Press busy/idle power comes from PRESS_CLASSES."""
@@ -124,6 +131,7 @@ class Power:
     warmup_frac: float = 0.8  # barrel re-heat draws 80 % of busy power
     warmup_min: float = 45.0
     hvac: float = 120.0  # ISO 8 moulding hall + ISO 7 packaging clean room
+    price_eur_mwh: tuple[float, ...] = PRICE_PROFILE  # one value per hour of day
 
 
 # Repair time (lognormal mean, sd in minutes) per failure mode, and what a repair restores.
