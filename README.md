@@ -45,7 +45,6 @@ flowchart LR
 | `Presentation_Gerresheimer_Pfreimd.pptx` | Phase 1 concept presentation |
 | `Progress_Presentation_Gerresheimer_Pfreimd.pptx` | Phase 2 progress presentation (Phase 1 → Phase 2) |
 | `Progress_Presentation_Phase3_Gerresheimer_Pfreimd.pptx` (+ `.pdf`) | Phase 3 presentation (24 Nov): methodology, how PRED-MO works, sensitivity analysis, tests/CI, issues board. Rebuild with `tools/build_phase3_deck.py` |
-| `Presentation_8Dec_Gerresheimer_Pfreimd.pptx` (+ `.pdf`) | 8 Dec presentation: code structure, algorithms, justification, live demo, preliminary results. Rebuild with `tools/build_8dec_deck.py` |
 | `simulation/` | SimPy model, AI4I 2020 failure-risk model, Optuna NSGA-II tuning, experiments, tests ([details](simulation/README.md)) |
 
 ## Status
@@ -57,7 +56,7 @@ The simulation is at **model v2**. It has:
 - a non-ML maintenance-rule baseline;
 - energy cost under a time-of-day electricity price profile;
 - a one-at-a-time sensitivity analysis and a Morris screening on 10 assumed parameters;
-- a live demo with a decision trace (`python -m moulding_sim.demo`, runbook in [`simulation/DEMO.md`](simulation/DEMO.md)).
+- a live demo with a decision trace (`python -m moulding_sim.demo --trace 2`).
 
 Still open (tracked on the [issues board](https://github.com/MaheshBhushan/Case-Study-Intelligent-Systems/issues)):
 - the dashboard and demo video.
