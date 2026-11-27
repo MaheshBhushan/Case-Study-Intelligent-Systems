@@ -32,7 +32,8 @@ This model uses the Gerresheimer site in Pfreimd as a public reference case. It 
 git clone https://github.com/MaheshBhushan/Case-Study-Intelligent-Systems.git
 cd Case-Study-Intelligent-Systems/simulation
 uv sync --locked                           # Python 3.12, versions pinned in uv.lock
-uv run pytest -q                           # 29 tests, ~20 s
+uv run pytest -q                           # 35 tests
+uv run python -m moulding_sim.demo --trace 2   # one scenario, 5 policies, dispatch trace (<30 s)
 uv run python -m moulding_sim.experiments  # 100 held-out scenarios -> results/summary.md
 ```
 
@@ -64,7 +65,7 @@ flowchart LR
 | Orders | 10 products in PP, ABS, POM and PC. Drying takes 0–240 min depending on the material. Campaign lots are 20k–900k parts |
 | Changeovers | 45 min GMP line clearance, plus 165 min for a mould change or 40 min for a material purge. Setters: 3 per day shift, 1 at night |
 | Failures | Screw wear and fouling build up while a press runs. Each shift, a sensor reading is checked against the AI4I failure rules, which are mapped to press components. Repairs take 3–24 h (lognormal) and need one of 2 technicians |
-| Energy | Power by drive type and state, plus a fixed 120 kW clean-room HVAC load. Reported as kWh per 1,000 good parts |
+| Energy | Power by drive type and state, plus a fixed 120 kW clean-room HVAC load. Reported as kWh and as EUR per 1,000 good parts, priced with an hourly day-ahead profile (`PRICE_PROFILE` in `config.py`, 70–160 EUR/MWh) |
 | Quality | Defect rate rises with screw wear. The camera misses 2 % of defects and falsely rejects 0.3 % of good parts. QA release hold has a mean of 48 h |
 
 Each seed is one randomised scenario, and every policy runs on the same seeds (common random numbers). Orders are released for 12 weeks, and KPIs are measured from week 3 to week 12. There are four scenarios: `low`, `base` and `high` demand (about 67 / 77 / 87 % press utilisation), and `harsh` (faster wear at base demand).
@@ -115,13 +116,13 @@ The ablation at base demand ([`ablation_summary.csv`](results/ablation_summary.c
 - Maintenance time depends on the assumptions. PRED-MO needs more maintenance than the wear rule when repairs are short (×0.5, +8.9 %) or PM takes 240 min (+8.6 %). It needs less when repairs are long (×1.5, −6.2 %) or PM takes 60 min (−12.7 %).
 - PRED-MO lets more defects escape only at high wear (+2.2 %). Its OEE is about 1 % lower at every level.
 
-This analysis is one-at-a-time, so it does not test interactions between parameters.
+This analysis is one-at-a-time, so it does not test interactions between parameters. `uv run python -m moulding_sim.morris` adds a Morris elementary-effects screening over all 10 parameters at once ([`results/morris.md`](results/morris.md)).
 
 ## Limitations
 
 - There is no real plant data. AI4I 2020 is a milling dataset, used here as a stand-in failure signal.
 - Press power, crew sizes, repair times and lot sizes are assumptions. The one-at-a-time sensitivity analysis covers most of them, but not lot sizes or press power.
-- HVAC is modelled as a fixed load, so energy differences at plant level stay small. Time-of-day electricity prices are not modelled.
+- HVAC is modelled as a fixed load, so energy differences at plant level stay small. The time-of-day price profile is stylised, and no policy plans around prices yet.
 - Assembly is one processing step per lot, not a multi-part bill of materials.
 
 ## Repository structure
@@ -135,6 +136,8 @@ src/moulding_sim/
   experiments.py  replications, confidence intervals, paired tests
   optimize.py     rule grid search, NSGA-II tuning, Pareto front
   sensitivity.py  one-at-a-time sensitivity of the assumed parameters
+  morris.py       Morris elementary-effects screening (interactions)
+  demo.py         live demo: one scenario, all policies, dispatch trace
 tests/            CRN, flow, moulds/setups, night shift, energy, camera, QA hold, AI4I rules, policies
 results/          tuned parameters, Pareto front, summaries, paired tests, ablation
 ```
